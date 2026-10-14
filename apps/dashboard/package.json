@@ -1,0 +1,29 @@
+{
+  "name": "@causal/dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "@causal/types": "workspace:*",
+    "heatmap.js": "^2.0.5",
+    "lucide-react": "^0.545.0",
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.1",
+    "@tailwindcss/postcss": "^4.1.14",
+    "@types/heatmap.js": "^2.0.41",
+    "@types/react": "19.3.0",
+    "tailwindcss": "^4.1.14",
+    "typescript": "^5.9.3"
+  }
+}

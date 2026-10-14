@@ -1,0 +1,1 @@
+{"name":"@causal/tracker","version":"1.0.0","private":true,"scripts":{"build":"tsup src/index.ts --format iife,esm --minify --dts --out-dir dist","dev":"tsup src/index.ts --format iife --watch --out-dir dist","typecheck":"tsc -p tsconfig.json --noEmit","lint":"tsc -p tsconfig.json --noEmit"},"devDependencies":{"tsup":"^8.5.0","typescript":"^5.9.3"}}

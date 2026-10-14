@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>
+    Analytics Demo
+  </title>
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+
+      font-family:
+        Inter,
+        Arial,
+        sans-serif;
+
+      background: #f7f8fa;
+
+      color: #171717;
+    }
+
+    header {
+      position: sticky;
+
+      top: 0;
+
+      z-index: 10;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      padding: 18px 32px;
+
+      background: rgba(
+        255,
+        255,
+        255,
+        0.94
+      );
+
+      border-bottom:
+        1px solid #e5e7eb;
+
+      backdrop-filter:
+        blur(12px);
+    }
+
+    .logo {
+      font-size: 20px;
+
+      font-weight: 700;
+    }
+
+    nav {
+      display: flex;
+
+      gap: 12px;
+    }
+
+    nav a {
+      color: #555;
+
+      text-decoration: none;
+
+      font-size: 14px;
+
+      padding:
+        8px 12px;
+
+      border-radius: 8px;
+    }
+
+    nav a:hover {
+      background: #f0f1f3;
+
+      color: #111;
+    }
+
+    main {
+      max-width: 1100px;
+
+      margin: auto;
+
+      padding:
+        70px 24px;
+    }
+
+    .hero {
+      padding:
+        70px 0 100px;
+    }
+
+    .eyebrow {
+      color: #666;
+
+      font-size: 14px;
+
+      font-weight: 600;
+
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      max-width: 720px;
+
+      margin: 0 0 20px;
+
+      font-size:
+        clamp(
+          42px,
+          7vw,
+          76px
+        );
+
+      line-height: 1.02;
+
+      letter-spacing: -0.05em;
+    }
+
+    .hero p {
+      max-width: 650px;
+
+      color: #666;
+
+      font-size: 18px;
+
+      line-height: 1.7;
+
+      margin-bottom: 30px;
+    }
+
+    button {
+      border: 0;
+
+      border-radius: 10px;
+
+      padding:
+        13px 18px;
+
+      background: #111;
+
+      color: white;
+
+      font-size: 14px;
+
+      font-weight: 600;
+
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #333;
+    }
+
+    section {
+      padding:
+        80px 0;
+
+      border-top:
+        1px solid #e5e7eb;
+    }
+
+    .grid {
+      display: grid;
+
+      grid-template-columns:
+        repeat(
+          auto-fit,
+          minmax(
+            220px,
+            1fr
+          )
+        );
+
+      gap: 18px;
+    }
+
+    .card {
+      background: white;
+
+      border:
+        1px solid #e5e7eb;
+
+      border-radius: 14px;
+
+      padding: 24px;
+
+      min-height: 180px;
+
+      box-shadow:
+        0 8px 30px
+        rgba(
+          0,
+          0,
+          0,
+          0.04
+        );
+    }
+
+    .card h3 {
+      margin-top: 0;
+    }
+
+    .card p {
+      color: #666;
+
+      line-height: 1.6;
+    }
+
+    footer {
+      padding:
+        60px 24px;
+
+      text-align: center;
+
+      color: #777;
+
+      border-top:
+        1px solid #e5e7eb;
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+  <header>
+
+    <div class="logo">
+      Analytics Demo
+    </div>
+
+    <nav>
+
+      <a href="#home">
+        Home
+      </a>
+
+      <a href="#collection">
+        Collection
+      </a>
+
+      <a href="#about">
+        About
+      </a>
+
+    </nav>
+
+  </header>
+
+
+  <main>
+
+    <section
+      id="home"
+      class="hero"
+      style="border-top:0;"
+    >
+
+      <div class="eyebrow">
+        USER ANALYTICS DEMO
+      </div>
+
+      <h1>
+        Understand how
+        people use your
+        website.
+      </h1>
+
+      <p>
+        This page is connected to
+        the analytics tracker.
+        Every page view and click
+        is automatically collected
+        and sent to the backend.
+      </p>
+
+      <button id="buy">
+        Explore Collection
+      </button>
+
+    </section>
+
+
+    <section id="collection">
+
+      <div class="eyebrow">
+        COLLECTION
+      </div>
+
+      <h2>
+        Featured Products
+      </h2>
+
+      <div class="grid">
+
+        <article class="card">
+
+          <h3>
+            Product One
+          </h3>
+
+          <p>
+            Click this card to generate
+            a real analytics event.
+          </p>
+
+          <button
+            data-product="Product One"
+          >
+            View Product
+          </button>
+
+        </article>
+
+
+        <article class="card">
+
+          <h3>
+            Product Two
+          </h3>
+
+          <p>
+            Every interaction is tracked
+            with its actual screen position.
+          </p>
+
+          <button
+            data-product="Product Two"
+          >
+            View Product
+          </button>
+
+        </article>
+
+
+        <article class="card">
+
+          <h3>
+            Product Three
+          </h3>
+
+          <p>
+            These clicks will appear in
+            your dashboard heatmap.
+          </p>
+
+          <button
+            data-product="Product Three"
+          >
+            View Product
+          </button>
+
+        </article>
+
+      </div>
+
+    </section>
+
+
+    <section id="about">
+
+      <div class="eyebrow">
+        ABOUT
+      </div>
+
+      <h2>
+        Real tracking. No mock data.
+      </h2>
+
+      <p>
+        The analytics application
+        records real browser events,
+        associates them with a session,
+        stores them in MongoDB,
+        and exposes them through the
+        analytics dashboard.
+      </p>
+
+    </section>
+
+  </main>
+
+
+  <footer>
+    Analytics Demo
+  </footer>
+
+
+  <!-- =====================================================
+       ANALYTICS TRACKER
+
+       IMPORTANT:
+       The API explicitly tells the tracker
+       where events should be sent.
+       ===================================================== -->
+
+  <script
+    src="http://localhost:4000/tracker.js"
+    data-api="http://localhost:4000"
+    data-project-id="demo-project"
+  ></script>
+
+
+  <script>
+
+    /*
+     * Demo interactions.
+     * The analytics tracker automatically
+     * captures the clicks.
+     */
+
+    document
+      .querySelectorAll(
+        "button[data-product]"
+      )
+      .forEach(
+        (button) => {
+
+          button.addEventListener(
+            "click",
+            () => {
+
+              alert(
+                "Product selected: " +
+                button.dataset.product
+              );
+
+            }
+          );
+
+        }
+      );
+
+
+    document
+      .querySelector("#buy")
+      .addEventListener(
+        "click",
+        () => {
+
+          document
+            .querySelector(
+              "#collection"
+            )
+            .scrollIntoView({
+              behavior: "smooth"
+            });
+
+        }
+      );
+
+  </script>
+
+</body>
+
+</html>

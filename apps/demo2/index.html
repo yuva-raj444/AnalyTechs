@@ -117,7 +117,8 @@
         </section>
     </main>
     <div id="footer"></div>
-    <script src="nav.js"></script>
+<script src="nav.js"></script>
+
 <script>
   const isLocal =
     location.hostname === "localhost" ||
@@ -127,13 +128,13 @@
     ? "http://localhost:4000"
     : "https://analyteck444.onrender.com";
 
-  document.write(`
-    <script
-      src="${api}/tracker.js"
-      data-api="${api}"
-      data-project-id="demo-project"
-    ><\/script>
-  `);
+  const tracker = document.createElement("script");
+
+  tracker.src = `${api}/tracker.js`;
+  tracker.dataset.api = api;
+  tracker.dataset.projectId = "demo-project";
+
+  document.head.appendChild(tracker);
 </script>
 </body>
 

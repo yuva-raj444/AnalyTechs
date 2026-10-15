@@ -62,6 +62,8 @@ type Heat = {
   timestamp: string;
 };
 
+type DeviceFilter = 'all' | 'mobile' | 'tablet' | 'desktop';
+
 const project =
   process.env.NEXT_PUBLIC_PROJECT_ID || 'demo-project';
 
@@ -598,8 +600,9 @@ function Journey({
 }
 
 /* -------------------------------------------------------------------------- */
-/* REAL HEATMAP                                                                */
+/* REAL HEATMAP                                                               */
 /* -------------------------------------------------------------------------- */
+
 function Heatmap({
   page,
   setPage,
@@ -615,75 +618,157 @@ function Heatmap({
   const stageRef = useRef<HTMLDivElement>(null);
 
   const instanceRef =
-    useRef<ReturnType<typeof h337Type.create> | null>(null);
+    useRef<ReturnType<typeof h337Type.create> | null>(
+      null
+    );
 
-  const [heatmapReady, setHeatmapReady] = useState(false);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [availableWidth, setAvailableWidth] = useState(1100);
+  const [heatmapReady, setHeatmapReady] =
+    useState(false);
+
+  const [iframeLoaded, setIframeLoaded] =
+    useState(false);
+
+  const [availableWidth, setAvailableWidth] =
+    useState(1100);
+
+  /*
+   * Device filter.
+   *
+   * Mobile  = < 768px
+   * Tablet  = 768px - 1024px
+   * Desktop = > 1024px
+   */
+  const [device, setDevice] =
+    useState<DeviceFilter>('all');
+
+  /*
+   * Filter clicks before calculating page points.
+   * This means the heatmap, count and intensity
+   * all represent the selected device.
+   */
+  const filteredHeat = useMemo(() => {
+    if (device === 'all') {
+      return heat;
+    }
+
+    return heat.filter((item) => {
+      const width =
+        item.viewportWidth ??
+        item.documentWidth;
+
+      if (!Number.isFinite(width)) {
+        return false;
+      }
+
+      if (device === 'mobile') {
+        return width < 768;
+      }
+
+      if (device === 'tablet') {
+        return width >= 768 && width <= 1024;
+      }
+
+      if (device === 'desktop') {
+        return width > 1024;
+      }
+
+      return true;
+    });
+  }, [heat, device]);
 
   /*
    * Use the real page dimensions captured by the tracker.
+   *
    * For events captured before the new tracker existed,
    * the API falls back to viewport dimensions.
    */
   const pageDimensions = useMemo(() => {
-    if (!heat.length) {
+    if (!filteredHeat.length) {
       return { width: 1440, height: 900 };
     }
 
-    const widths = heat
+    const widths = filteredHeat
       .map((item) => item.documentWidth)
-      .filter((value) => Number.isFinite(value) && value > 0);
+      .filter(
+        (value) =>
+          Number.isFinite(value) && value > 0
+      );
 
-    const heights = heat
+    const heights = filteredHeat
       .map((item) => item.documentHeight)
-      .filter((value) => Number.isFinite(value) && value > 0);
+      .filter(
+        (value) =>
+          Number.isFinite(value) && value > 0
+      );
 
     const width = widths.length
-      ? Math.max(320, Math.round(Math.max(...widths)))
+      ? Math.max(
+          320,
+          Math.round(Math.max(...widths))
+        )
       : 1440;
 
     const height = heights.length
-      ? Math.max(600, Math.round(Math.max(...heights)))
+      ? Math.max(
+          600,
+          Math.round(Math.max(...heights))
+        )
       : 900;
 
     return { width, height };
-  }, [heat]);
+  }, [filteredHeat]);
 
   /*
-   * Fit the captured page into the dashboard while keeping
-   * the source coordinate system unchanged.
+   * Fit the captured page into the dashboard while
+   * keeping the source coordinate system unchanged.
    */
   const scale = useMemo(() => {
-    return Math.min(1, availableWidth / pageDimensions.width);
-  }, [availableWidth, pageDimensions.width]);
+    return Math.min(
+      1,
+      availableWidth / pageDimensions.width
+    );
+  }, [
+    availableWidth,
+    pageDimensions.width,
+  ]);
 
-  const displayWidth = Math.round(pageDimensions.width * scale);
-  const displayHeight = Math.round(pageDimensions.height * scale);
+  const displayWidth = Math.round(
+    pageDimensions.width * scale
+  );
+
+  const displayHeight = Math.round(
+    pageDimensions.height * scale
+  );
 
   /*
-   * Convert each click from its original page coordinate
-   * system into the captured page coordinate system.
-   * This is the important part: scroll is already included
-   * in documentX/documentY, so scrolling no longer moves the
-   * heatmap away from the element that was clicked.
+   * Convert each click from its original page
+   * coordinate system into the captured page
+   * coordinate system.
+   *
+   * Scroll is already included in documentX/documentY.
    */
   const pagePoints = useMemo(() => {
-    return heat
+    return filteredHeat
       .map((item) => {
         const sourceWidth =
-          item.documentWidth || item.viewportWidth || pageDimensions.width;
+          item.documentWidth ||
+          item.viewportWidth ||
+          pageDimensions.width;
 
         const sourceHeight =
-          item.documentHeight || item.viewportHeight || pageDimensions.height;
+          item.documentHeight ||
+          item.viewportHeight ||
+          pageDimensions.height;
 
         const rawX =
-          item.documentWidth && item.documentX !== undefined
+          item.documentWidth &&
+          item.documentX !== undefined
             ? item.documentX
             : item.x;
 
         const rawY =
-          item.documentHeight && item.documentY !== undefined
+          item.documentHeight &&
+          item.documentY !== undefined
             ? item.documentY
             : item.y;
 
@@ -697,56 +782,78 @@ function Heatmap({
         }
 
         /*
-         * Normalize against the dimensions that existed when
-         * that particular click happened. This handles responsive
-         * visitors with different viewport/page sizes as well.
+         * Normalize against the dimensions that existed
+         * when that particular click happened.
          */
         const nx = Math.min(
           1,
-          Math.max(0, rawX / sourceWidth)
+          Math.max(
+            0,
+            rawX / sourceWidth
+          )
         );
 
         const ny = Math.min(
           1,
-          Math.max(0, rawY / sourceHeight)
+          Math.max(
+            0,
+            rawY / sourceHeight
+          )
         );
 
         return {
-          x: Math.round(nx * pageDimensions.width),
-          y: Math.round(ny * pageDimensions.height),
+          x: Math.round(
+            nx * pageDimensions.width
+          ),
+          y: Math.round(
+            ny * pageDimensions.height
+          ),
           value: 1,
         };
       })
       .filter(
         (
           point
-        ): point is { x: number; y: number; value: number } =>
-          point !== null
+        ): point is {
+          x: number;
+          y: number;
+          value: number;
+        } => point !== null
       );
-  }, [heat, pageDimensions]);
+  }, [
+    filteredHeat,
+    pageDimensions,
+  ]);
 
   /*
-   * Keep the heatmap stage responsive without changing its
-   * internal page coordinate system.
+   * Keep the heatmap stage responsive without
+   * changing its internal page coordinate system.
    */
   useEffect(() => {
-    const element = stageRef.current?.parentElement;
+    const element =
+      stageRef.current?.parentElement;
+
     if (!element) return;
 
     const update = () => {
-      setAvailableWidth(Math.max(320, element.clientWidth));
+      setAvailableWidth(
+        Math.max(320, element.clientWidth)
+      );
     };
 
     update();
 
-    const observer = new ResizeObserver(update);
+    const observer =
+      new ResizeObserver(update);
+
     observer.observe(element);
 
     return () => observer.disconnect();
   }, []);
 
   /*
-   * Recreate heatmap.js when the source page dimensions change.
+   * Recreate heatmap.js when the source page
+   * dimensions change.
    */
   useEffect(() => {
     let cancelled = false;
@@ -754,30 +861,41 @@ function Heatmap({
     async function initializeHeatmap() {
       if (!heatmapRef.current) return;
 
-      const module = await import('heatmap.js');
+      const module = await import(
+        'heatmap.js'
+      );
 
-      if (cancelled || !heatmapRef.current) return;
+      if (
+        cancelled ||
+        !heatmapRef.current
+      ) {
+        return;
+      }
 
-      const container = heatmapRef.current;
+      const container =
+        heatmapRef.current;
+
       container.innerHTML = '';
 
-      const instance = module.default.create({
-        container,
-        radius: 65,
-        maxOpacity: 0.85,
-        minOpacity: 0.05,
-        blur: 0.82,
-        gradient: {
-          '0.00': 'rgba(0, 0, 255, 0)',
-          '0.20': '#21c55d',
-          '0.40': '#84cc16',
-          '0.55': '#fde047',
-          '0.70': '#facc15',
-          '0.82': '#f97316',
-          '0.92': '#ef4444',
-          '1.00': '#dc2626',
-        },
-      });
+      const instance =
+        module.default.create({
+          container,
+          radius: 65,
+          maxOpacity: 0.85,
+          minOpacity: 0.05,
+          blur: 0.82,
+          gradient: {
+            '0.00':
+              'rgba(0, 0, 255, 0)',
+            '0.20': '#21c55d',
+            '0.40': '#84cc16',
+            '0.55': '#fde047',
+            '0.70': '#facc15',
+            '0.82': '#f97316',
+            '0.92': '#ef4444',
+            '1.00': '#dc2626',
+          },
+        });
 
       instanceRef.current = instance;
       setHeatmapReady(true);
@@ -792,6 +910,7 @@ function Heatmap({
     }
 
     setHeatmapReady(false);
+
     initializeHeatmap();
 
     return () => {
@@ -799,17 +918,27 @@ function Heatmap({
       instanceRef.current = null;
 
       if (heatmapRef.current) {
-        heatmapRef.current.innerHTML = '';
+        heatmapRef.current.innerHTML =
+          '';
       }
     };
-  }, [page, pageDimensions.width, pageDimensions.height]);
+  }, [
+    page,
+    pageDimensions.width,
+    pageDimensions.height,
+  ]);
 
-  /* Render new points after the instance is ready. */
+  /*
+   * Render new points after the instance is ready.
+   */
   useEffect(() => {
     if (!heatmapReady) return;
 
-    const instance = instanceRef.current;
-    const container = heatmapRef.current;
+    const instance =
+      instanceRef.current;
+
+    const container =
+      heatmapRef.current;
 
     if (!instance || !container) return;
 
@@ -828,47 +957,118 @@ function Heatmap({
     iframeLoaded,
   ]);
 
+  /*
+   * Reset iframe load state whenever the page changes.
+   */
+  useEffect(() => {
+    setIframeLoaded(false);
+  }, [page]);
+
   return (
     <div className="space-y-5">
-      <section className="panel p-4 flex flex-col sm:flex-row gap-3 sm:items-end">
-        <label className="block flex-1">
-          <div className="text-[11px] uppercase tracking-[.12em] subtle mb-2">
-            Page URL
-          </div>
+      {/* ------------------------------------------------------------------ */}
+      {/* FILTER BAR                                                          */}
+      {/* ------------------------------------------------------------------ */}
 
-          <select
-            value={page}
-            onChange={(e) => setPage(e.target.value)}
-            className="w-full h-10 border border-[#dcdcd6] rounded-lg px-3 text-sm bg-white outline-none focus:ring-2 focus:ring-[#d9e8e1]"
-          >
-            {pages.length ? (
-              pages.map((p) => (
-                <option key={p} value={p}>
-                  {p}
+      <section className="panel p-4">
+        <div className="flex flex-col lg:flex-row gap-3 lg:items-end">
+          <label className="block flex-1">
+            <div className="text-[11px] uppercase tracking-[.12em] subtle mb-2">
+              Page URL
+            </div>
+
+            <select
+              value={page}
+              onChange={(e) =>
+                setPage(e.target.value)
+              }
+              className="w-full h-10 border border-[#dcdcd6] rounded-lg px-3 text-sm bg-white outline-none focus:ring-2 focus:ring-[#d9e8e1]"
+            >
+              {pages.length ? (
+                pages.map((p) => (
+                  <option
+                    key={p}
+                    value={p}
+                  >
+                    {p}
+                  </option>
+                ))
+              ) : (
+                <option>
+                  No tracked pages yet
                 </option>
-              ))
-            ) : (
-              <option>No tracked pages yet</option>
-            )}
-          </select>
-        </label>
+              )}
+            </select>
+          </label>
 
-        <div className="h-10 px-3 border border-[#e0e0da] rounded-lg flex items-center gap-2 text-xs subtle">
-          <MousePointer2 size={14} />
-          {heat.length} {heat.length === 1 ? 'click' : 'clicks'}
+          <label className="block w-full lg:w-[190px]">
+            <div className="text-[11px] uppercase tracking-[.12em] subtle mb-2">
+              Device
+            </div>
+
+            <select
+              value={device}
+              onChange={(e) =>
+                setDevice(
+                  e.target
+                    .value as DeviceFilter
+                )
+              }
+              className="w-full h-10 border border-[#dcdcd6] rounded-lg px-3 text-sm bg-white outline-none focus:ring-2 focus:ring-[#d9e8e1]"
+            >
+              <option value="all">
+                All
+              </option>
+
+              <option value="mobile">
+                Mobile
+              </option>
+
+              <option value="tablet">
+                Tablet
+              </option>
+
+              <option value="desktop">
+                Desktop
+              </option>
+            </select>
+          </label>
+
+          <div className="h-10 px-3 border border-[#e0e0da] rounded-lg flex items-center gap-2 text-xs subtle whitespace-nowrap">
+            <MousePointer2 size={14} />
+
+            {filteredHeat.length}{' '}
+            {filteredHeat.length === 1
+              ? 'click'
+              : 'clicks'}
+          </div>
         </div>
       </section>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* HEATMAP                                                             */}
+      {/* ------------------------------------------------------------------ */}
 
       <section className="panel overflow-hidden">
         <div className="px-5 py-4 border-b border-[#e4e4df] flex items-center justify-between">
           <div>
-            <div className="font-medium text-sm">Interaction heatmap</div>
+            <div className="font-medium text-sm">
+              Interaction heatmap
+            </div>
+
             <div className="text-xs subtle mt-0.5">
-              Document-position clicks mapped to the tracked page
+              {device === 'all'
+                ? 'Document-position clicks mapped to the tracked page'
+                : `${device.charAt(0).toUpperCase()}${device.slice(
+                    1
+                  )} clicks mapped to the tracked page`}
             </div>
           </div>
 
-          <Globe2 size={17} className="subtle" />
+          <Globe2
+            size={17}
+            className="subtle"
+          />
         </div>
 
         <div className="p-5">
@@ -905,7 +1105,9 @@ function Heatmap({
                         width: `${pageDimensions.width}px`,
                         height: `${pageDimensions.height}px`,
                       }}
-                      onLoad={() => setIframeLoaded(true)}
+                      onLoad={() =>
+                        setIframeLoaded(true)
+                      }
                     />
                   ) : (
                     <div className="absolute inset-0 grid place-items-center text-sm subtle bg-white">
@@ -927,17 +1129,24 @@ function Heatmap({
                   </div>
 
                   <div className="absolute top-3 right-3 z-30 px-2.5 py-1.5 rounded-md bg-white/90 text-[#343631] text-[10px] font-medium backdrop-blur-sm border border-black/5">
-                    {heat.length} {heat.length === 1 ? 'click' : 'clicks'}
+                    {filteredHeat.length}{' '}
+                    {filteredHeat.length === 1
+                      ? 'click'
+                      : 'clicks'}
                   </div>
 
-                  {!heat.length && (
+                  {!filteredHeat.length && (
                     <div className="absolute inset-0 z-40 pointer-events-none grid place-items-center">
                       <div className="bg-white/90 backdrop-blur-sm border border-[#dedfd9] rounded-xl px-5 py-4 shadow-sm text-center">
                         <div className="text-sm font-medium">
                           No clicks recorded
                         </div>
+
                         <div className="text-xs subtle mt-1">
-                          Interact with this page to generate heatmap data.
+                          {device ===
+                          'all'
+                            ? 'Interact with this page to generate heatmap data.'
+                            : `No ${device} clicks have been recorded for this page.`}
                         </div>
                       </div>
                     </div>
@@ -948,16 +1157,23 @@ function Heatmap({
 
             <div className="mt-3 flex items-center justify-between text-[10px] subtle">
               <span>
-                Page size: {pageDimensions.width.toLocaleString()} ×{' '}
-                {pageDimensions.height.toLocaleString()} px
+                Page size:{' '}
+                {pageDimensions.width.toLocaleString()}{' '}
+                ×{' '}
+                {pageDimensions.height.toLocaleString()}{' '}
+                px
               </span>
+
               <span>
-                Scroll inside the preview to inspect the full page
+                Scroll inside the preview to inspect
+                the full page
               </span>
             </div>
 
             <div className="mt-4 flex items-center justify-between">
-              <span className="text-[10px] subtle">Less interaction</span>
+              <span className="text-[10px] subtle">
+                Less interaction
+              </span>
 
               <div
                 className="h-2.5 w-52 rounded-full"
@@ -967,7 +1183,9 @@ function Heatmap({
                 }}
               />
 
-              <span className="text-[10px] subtle">More interaction</span>
+              <span className="text-[10px] subtle">
+                More interaction
+              </span>
             </div>
           </div>
         </div>
@@ -979,35 +1197,60 @@ function Heatmap({
 function renderHeatmap(
   instance: ReturnType<typeof h337Type.create>,
   container: HTMLDivElement,
-  points: { x: number; y: number; value: number }[],
+  points: {
+    x: number;
+    y: number;
+    value: number;
+  }[],
   width: number,
   height: number
 ) {
   if (!width || !height) return;
 
   if (!points.length) {
-instance.setData({
-  min: 0,
-  max: 1,
-  data: [],
-});   
- return;
+    instance.setData({
+      min: 0,
+      max: 1,
+      data: [],
+    });
+
+    return;
   }
 
-  /* Group nearby clicks in the ORIGINAL page coordinate system. */
+  /*
+   * Group nearby clicks in the ORIGINAL page
+   * coordinate system.
+   */
   const buckets = new Map<
     string,
-    { x: number; y: number; value: number }
+    {
+      x: number;
+      y: number;
+      value: number;
+    }
   >();
 
   const bucketSize = 35;
 
   for (const point of points) {
-    const x = Math.max(0, Math.min(width, point.x));
-    const y = Math.max(0, Math.min(height, point.y));
+    const x = Math.max(
+      0,
+      Math.min(width, point.x)
+    );
 
-    const bucketX = Math.floor(x / bucketSize);
-    const bucketY = Math.floor(y / bucketSize);
+    const y = Math.max(
+      0,
+      Math.min(height, point.y)
+    );
+
+    const bucketX = Math.floor(
+      x / bucketSize
+    );
+
+    const bucketY = Math.floor(
+      y / bucketSize
+    );
+
     const key = `${bucketX}:${bucketY}`;
 
     const existing = buckets.get(key);
@@ -1015,16 +1258,28 @@ instance.setData({
     if (existing) {
       existing.value += 1;
     } else {
-      buckets.set(key, { x, y, value: 1 });
+      buckets.set(key, {
+        x,
+        y,
+        value: 1,
+      });
     }
   }
 
-  const data = Array.from(buckets.values());
-  const max = Math.max(1, ...data.map((point) => point.value));
+  const data = Array.from(
+    buckets.values()
+  );
 
- instance.setData({
-  min: 0,
-  max: Math.max(2, max),
-  data,
-});
+  const max = Math.max(
+    1,
+    ...data.map(
+      (point) => point.value
+    )
+  );
+
+  instance.setData({
+    min: 0,
+    max: Math.max(2, max),
+    data,
+  });
 }

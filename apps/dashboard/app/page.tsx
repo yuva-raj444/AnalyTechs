@@ -39,6 +39,8 @@ type Event = {
     documentY?: number;
     documentWidth?: number;
     documentHeight?: number;
+    contentWidth?: number;
+    contentHeight?: number;
     scrollX?: number;
     scrollY?: number;
     viewportX?: number;
@@ -55,6 +57,8 @@ type Heat = {
   documentY?: number;
   documentWidth: number;
   documentHeight: number;
+  contentWidth?: number;
+  contentHeight?: number;
   viewportWidth?: number;
   viewportHeight?: number;
   scrollX?: number;
@@ -677,10 +681,11 @@ function Heatmap({
   }, [heat, device]);
 
   /*
-   * Use the real page dimensions captured by the tracker.
-   *
-   * For events captured before the new tracker existed,
-   * the API falls back to viewport dimensions.
+   * Build one stable coordinate space for the selected page.
+   * Prefer content dimensions when the tracker provides them.
+   * For older events, detect the common "documentHeight == viewportHeight"
+   * case caused by short pages / preview iframes and avoid treating the
+   * viewport itself as artificial page content.
    */
   const pageDimensions = useMemo(() => {
     if (!filteredHeat.length) {
@@ -688,34 +693,69 @@ function Heatmap({
     }
 
     const widths = filteredHeat
-      .map((item) => item.documentWidth)
+      .map(
+        (item) =>
+          item.contentWidth ||
+          item.documentWidth ||
+          item.viewportWidth
+      )
       .filter(
-        (value) =>
-          Number.isFinite(value) && value > 0
+        (value): value is number =>
+          typeof value === "number" &&
+          Number.isFinite(value) &&
+          value > 0
       );
 
     const heights = filteredHeat
-      .map((item) => item.documentHeight)
+      .map((item) => {
+        if (item.contentHeight && item.contentHeight > 0) {
+          return item.contentHeight;
+        }
+
+        const docHeight = item.documentHeight;
+        const viewportHeight = item.viewportHeight || 0;
+        const rawY =
+          item.documentY !== undefined
+            ? item.documentY
+            : item.y;
+
+        // If the reported document height is essentially just the viewport,
+        // don't create a giant preview from the viewport itself.
+        if (
+          docHeight > 0 &&
+          viewportHeight > 0 &&
+          docHeight <= viewportHeight * 1.08
+        ) {
+          return Math.max(
+            600,
+            Math.ceil(rawY + Math.min(240, viewportHeight * 0.18))
+          );
+        }
+
+        return docHeight;
+      })
       .filter(
-        (value) =>
+        (value): value is number =>
           Number.isFinite(value) && value > 0
       );
 
     const width = widths.length
-      ? Math.max(
-          320,
-          Math.round(Math.max(...widths))
-        )
+      ? Math.max(320, Math.round(Math.max(...widths)))
       : 1440;
 
-    const height = heights.length
-      ? Math.max(
-          600,
-          Math.round(Math.max(...heights))
-        )
-      : 900;
+    // Median is more stable than max when a single event was captured
+    // with an unusually tall viewport.
+    const sortedHeights = [...heights].sort((a, b) => a - b);
+    const middle = Math.floor(sortedHeights.length / 2);
+    const medianHeight =
+      sortedHeights.length % 2
+        ? sortedHeights[middle]
+        : (sortedHeights[middle - 1] + sortedHeights[middle]) / 2;
 
-    return { width, height };
+    return {
+      width,
+      height: Math.max(600, Math.round(medianHeight || 900)),
+    };
   }, [filteredHeat]);
 
   /*
@@ -751,11 +791,13 @@ function Heatmap({
     return filteredHeat
       .map((item) => {
         const sourceWidth =
+          item.contentWidth ||
           item.documentWidth ||
           item.viewportWidth ||
           pageDimensions.width;
 
-        const sourceHeight =
+        const reportedHeight =
+          item.contentHeight ||
           item.documentHeight ||
           item.viewportHeight ||
           pageDimensions.height;
@@ -776,29 +818,44 @@ function Heatmap({
           !Number.isFinite(rawX) ||
           !Number.isFinite(rawY) ||
           !sourceWidth ||
-          !sourceHeight
+          !reportedHeight
         ) {
           return null;
         }
 
         /*
-         * Normalize against the dimensions that existed
-         * when that particular click happened.
+         * If the reported document height is basically the viewport height,
+         * it is not useful as a page coordinate space for a short page.
+         * Keep the raw document Y coordinate instead of shrinking it by
+         * the inflated viewport height.
          */
+        const viewportHeight = item.viewportHeight || 0;
+        const heightLooksLikeViewport =
+          !item.contentHeight &&
+          viewportHeight > 0 &&
+          reportedHeight <= viewportHeight * 1.08;
+
+        const sourceHeight = heightLooksLikeViewport
+          ? Math.max(
+              600,
+              Math.ceil(
+                rawY +
+                  Math.min(
+                    240,
+                    viewportHeight * 0.18
+                  )
+              )
+            )
+          : reportedHeight;
+
         const nx = Math.min(
           1,
-          Math.max(
-            0,
-            rawX / sourceWidth
-          )
+          Math.max(0, rawX / sourceWidth)
         );
 
         const ny = Math.min(
           1,
-          Math.max(
-            0,
-            rawY / sourceHeight
-          )
+          Math.max(0, rawY / sourceHeight)
         );
 
         return {
@@ -830,22 +887,19 @@ function Heatmap({
    * changing its internal page coordinate system.
    */
   useEffect(() => {
-    const element =
-      stageRef.current?.parentElement;
+    const element = stageRef.current?.closest(
+      '[data-heatmap-scroll]'
+    ) as HTMLElement | null;
 
     if (!element) return;
 
     const update = () => {
-      setAvailableWidth(
-        Math.max(320, element.clientWidth)
-      );
+      setAvailableWidth(Math.max(320, element.clientWidth));
     };
 
     update();
 
-    const observer =
-      new ResizeObserver(update);
-
+    const observer = new ResizeObserver(update);
     observer.observe(element);
 
     return () => observer.disconnect();
@@ -1074,6 +1128,7 @@ function Heatmap({
         <div className="p-5">
           <div className="relative mx-auto max-w-[1100px]">
             <div
+              data-heatmap-scroll
               className="relative overflow-auto max-h-[75vh] rounded-xl border border-[#d8d9d3] bg-[#f7f7f5] shadow-sm"
               style={{
                 width: '100%',
@@ -1101,9 +1156,11 @@ function Heatmap({
                       src={page}
                       title="Tracked website"
                       className="absolute left-0 top-0 border-0 bg-white"
+                      scrolling="no"
                       style={{
                         width: `${pageDimensions.width}px`,
                         height: `${pageDimensions.height}px`,
+                        pointerEvents: 'none',
                       }}
                       onLoad={() =>
                         setIframeLoaded(true)

@@ -183,12 +183,12 @@ export default function Dashboard() {
       <aside className="hidden md:flex w-[236px] shrink-0 border-r border-[#e4e4df] bg-[#fbfbf9] p-4 flex-col">
         <div className="flex items-center gap-2 px-2 py-3 mb-8">
           <div className="w-8 h-8 rounded-lg bg-[#173c31] text-white grid place-items-center text-sm font-semibold">
-            C
+            A
           </div>
 
           <div>
             <div className="font-semibold tracking-tight">
-              Causal
+              AnalyTech's
             </div>
 
             <div className="text-[11px] text-[#8a8c86]">

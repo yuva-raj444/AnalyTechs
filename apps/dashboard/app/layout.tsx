@@ -1,7 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 export const metadata: Metadata = {
-  title: "Causal Analytics",
+  title: "AnalyTech's Analytics",
   description: "Product analytics dashboard",
 };
 export default function RootLayout({
